@@ -21,4 +21,4 @@ export SERVER_PORT=8080
 4. Install `docker-compose` and run `docker-compose up -d` to install and start the PostgreSQL database
 5. Run `go run .` to start the server
 
-!!! Note: You can also run `make setup` to automatically install the dependencies, create the `.env` file and start the database.
+> Note: If you have `make` util installed, you can also run `make setup` to automatically install the dependencies, create the `.env` file and start the database.
