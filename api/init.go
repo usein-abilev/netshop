@@ -1,7 +1,9 @@
 package api
 
 import (
+	"net/http"
 	"netshop/main/db"
+	"netshop/main/tools"
 
 	"github.com/gorilla/mux"
 )
@@ -18,6 +20,13 @@ func InitAndCreateRouter(opts *InitEndpointsOptions) *mux.Router {
 
 	InitAuthRouter(router, opts)
 	InitProductsRouter(router, opts)
+
+	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tools.RespondWithError(w, "Not found", http.StatusNotFound)
+	})
+	router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tools.RespondWithError(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
 
 	return router
 }

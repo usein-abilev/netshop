@@ -11,9 +11,6 @@ My personal goal with this project is to learn about Go and how to build a RESTf
 JWT_SECRET=secret
 JWT_EXPIRATION=expiration_in_ms ; default is 3600000
 
-ARGON2_SALT=argon2_salt
-ARGON2_THREADS=argon2_threads ; default is 4
-
 export DATABASE_URL=postgres://username:password@localhost:1900/dbname
 export SERVER_URL=0.0.0.0
 export SERVER_PORT=8080

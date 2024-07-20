@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"netshop/main/db"
 	"netshop/main/tools"
@@ -57,14 +58,12 @@ func (handler *authHandler) handleAuth(w http.ResponseWriter, req *http.Request)
 			tools.RespondWithError(w, "Invalid username or password", http.StatusBadRequest)
 			return
 		}
-
-		hashed, err := tools.HashPassword(password)
+		equal, err := tools.ComparePasswordAndHash(password, employee.Password)
 		if err != nil {
-			tools.RespondWithError(w, "Internal error", http.StatusInternalServerError)
-			return
+			log.Println("Error comparing password and hash:", err)
 		}
 
-		if employee.Password != hashed {
+		if err != nil || !equal {
 			tools.RespondWithError(w, "Invalid username or password", http.StatusBadRequest)
 			return
 		}
