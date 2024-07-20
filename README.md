@@ -22,3 +22,7 @@ export SERVER_PORT=8080
 5. Run `go run .` to start the server
 
 > Note: If you have `make` util installed, you can also run `make setup` to automatically install the dependencies, create the `.env` file and start the database.
+
+## Development Environment
+1. [go-task](https://github.com/go-task/task) used to simplify the development process by providing a **hot-reload** feature.
+2. [dbmate](https://github.com/amacneil/dbmate) is used to manage the database migrations.

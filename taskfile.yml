@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  :build:
+    cmds: 
+      - 'make build'
+    sources:
+      - ./*.go,
+      - ./**/*.go
+
+  :start:
+    cmds:
+      - 'task :build'
+      - './bin/main{{exeExt}}'
+    sources:
+      - ./*.go,
+      - ./**/*.go

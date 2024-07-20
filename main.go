@@ -9,6 +9,7 @@ import (
 	"netshop/main/db"
 	"netshop/main/tools"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -37,9 +38,17 @@ func main() {
 	})
 
 	httpServerStr := fmt.Sprintf("%s:%s", serverUrl, serverPort)
-	if err := http.ListenAndServe(httpServerStr, router); err != nil {
-		log.Fatalf("Cannot run server on %s port", serverPort)
-	} else {
-		log.Printf("Server is running on %s", httpServerStr)
+
+	server := &http.Server{
+		Addr:         httpServerStr,
+		IdleTimeout:  time.Second * 15,
+		ReadTimeout:  time.Second * 30,
+		WriteTimeout: time.Second * 30,
+		Handler:      router,
+	}
+
+	log.Printf("Starting server on http://%s", httpServerStr)
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Cannot run server on %s port %s", serverPort, err.Error())
 	}
 }
