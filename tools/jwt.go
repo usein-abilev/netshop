@@ -7,6 +7,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type UserTokenClaims struct {
+	Id       int64  `json:"id"`
+	Type     string `json:"type"`
+	Username string `json:"username"`
+}
+
 // Creates a new JWT token with the given values (claims)
 func NewJWTToken(claims jwt.MapClaims) (string, error) {
 	expire, err := time.ParseDuration(config.AppConfig.JwtExpire)
@@ -23,7 +29,7 @@ func NewJWTToken(claims jwt.MapClaims) (string, error) {
 }
 
 // Parses a JWT token and returns the claims (values) of the token
-func ParseJWTToken(tokenString string) (jwt.MapClaims, error) {
+func ParseJWTToken(tokenString string) (*UserTokenClaims, error) {
 	secret := config.AppConfig.JwtSecret
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
@@ -34,5 +40,11 @@ func ParseJWTToken(tokenString string) (jwt.MapClaims, error) {
 	if !token.Valid {
 		return nil, jwt.ErrInvalidKey
 	}
-	return token.Claims.(jwt.MapClaims), nil
+
+	claims := token.Claims.(jwt.MapClaims)
+	return &UserTokenClaims{
+		Id:       int64(claims["id"].(float64)),
+		Type:     claims["type"].(string),
+		Username: claims["username"].(string),
+	}, nil
 }

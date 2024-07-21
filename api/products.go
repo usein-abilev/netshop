@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"netshop/main/db"
@@ -22,16 +24,16 @@ func InitProductsRouter(router *mux.Router, opts *InitEndpointsOptions) {
 	}
 	productRouter := router.NewRoute().Subrouter()
 	productRouter.HandleFunc("/products", handler.handleGet).Methods("GET")
-	productRouter.HandleFunc("/products", handler.handleCreate).Methods("POST")
+	productRouter.HandleFunc("/products/create", RequireAuth(handler.handleCreate)).Methods("POST")
 	productRouter.HandleFunc("/products/{id:[0-9]+}", handler.handleGetById).Methods("GET")
-	productRouter.HandleFunc("/products/{id:[0-9]+}", handler.handleUpdate).Methods("PUT")
-	productRouter.HandleFunc("/products/{id:[0-9]+}", handler.handleDelete).Methods("DELETE")
+	productRouter.HandleFunc("/products/{id:[0-9]+}/edit", handler.handleEdit).Methods("PUT")
+	productRouter.HandleFunc("/products/{id:[0-9]+}/delete", handler.handleDelete).Methods("DELETE")
 }
 
 func (ph *productHandler) handleGet(w http.ResponseWriter, req *http.Request) {
 	products, err := ph.EntityStore.GetProducts()
 	if err != nil {
-		tools.RespondWithError(w, "Unexpected error while received products", http.StatusInternalServerError)
+		tools.RespondWithError(w, fmt.Sprintf("Unexpected error while received products: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -45,8 +47,6 @@ func (ph *productHandler) handleGetById(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	fmt.Printf("Handle products.getById query: %v\n", id)
-
 	product, err := ph.EntityStore.GetProductById(id)
 	if err != nil {
 		tools.RespondWithError(w, "Product not found", http.StatusNotFound)
@@ -57,11 +57,25 @@ func (ph *productHandler) handleGetById(w http.ResponseWriter, req *http.Request
 }
 
 func (ph *productHandler) handleCreate(w http.ResponseWriter, req *http.Request) {
-	// TODO: Implement product creation
-	tools.RespondWithError(w, "products.create not implemented yet", http.StatusNotImplemented)
+	user := req.Context().Value("user").(*tools.UserTokenClaims)
+
+	createOpts := &db.ProductCreateUpdate{}
+	if err := json.NewDecoder(req.Body).Decode(createOpts); err != nil {
+		tools.RespondWithError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	createOpts.EmployeeId = user.Id
+
+	if err := ph.EntityStore.CreateProduct(context.Background(), createOpts); err != nil {
+		tools.RespondWithError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	tools.RespondWithSuccess(w, true)
 }
 
-func (ph *productHandler) handleUpdate(w http.ResponseWriter, req *http.Request) {
+func (ph *productHandler) handleEdit(w http.ResponseWriter, req *http.Request) {
 	// TODO: Implement product update
 	tools.RespondWithError(w, "products.update not implemented yet", http.StatusNotImplemented)
 }

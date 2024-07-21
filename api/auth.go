@@ -24,6 +24,7 @@ func InitAuthRouter(router *mux.Router, opts *InitEndpointsOptions) {
 	}
 	authRouter := router.NewRoute().Subrouter()
 	authRouter.HandleFunc("/auth", handler.handleAuth).Methods("POST")
+	authRouter.HandleFunc("/auth/verify", RequireAuth(handler.handleVerify)).Methods("POST")
 }
 
 // Authorizes the customer or employee
@@ -69,8 +70,8 @@ func (handler *authHandler) handleAuth(w http.ResponseWriter, req *http.Request)
 		}
 
 		token, err := tools.NewJWTToken(map[string]interface{}{
-			"id":       employee.Id,
 			"type":     userType,
+			"id":       employee.Id,
 			"username": employee.Username,
 		})
 		if err != nil {
@@ -83,4 +84,8 @@ func (handler *authHandler) handleAuth(w http.ResponseWriter, req *http.Request)
 		tools.RespondWithError(w, "Invalid user type", http.StatusBadRequest)
 		return
 	}
+}
+
+func (handler *authHandler) handleVerify(w http.ResponseWriter, req *http.Request) {
+	tools.RespondWithSuccess(w, "Authorized")
 }

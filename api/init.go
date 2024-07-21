@@ -19,6 +19,7 @@ func InitAndCreateRouter(opts *InitEndpointsOptions) *mux.Router {
 	router.Use(LoggingMiddleware)
 
 	InitAuthRouter(router, opts)
+	InitCategoryRouter(router, opts)
 	InitProductsRouter(router, opts)
 
 	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
