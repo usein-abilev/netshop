@@ -74,6 +74,7 @@ func (handler *authHandler) handleAuth(w http.ResponseWriter, req *http.Request)
 			"username": employee.Username,
 		})
 		if err != nil {
+			log.Printf("Error creating JWT token: %v", err)
 			tools.RespondWithError(w, "Internal error", http.StatusInternalServerError)
 			return
 		}

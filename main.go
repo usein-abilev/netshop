@@ -5,30 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"netshop/main/api"
-	"netshop/main/db"
-	"netshop/main/tools"
-	"os"
 	"time"
 
-	"github.com/joho/godotenv"
+	"netshop/main/api"
+	"netshop/main/config"
+	"netshop/main/db"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalln("Cannot read .env file")
-	}
-
-	var (
-		dbConnectionStr = os.Getenv("DATABASE_URL")
-		serverUrl       = tools.TryGetEnv("SERVER_URL", "localhost")
-		serverPort      = tools.TryGetEnv("SERVER_PORT", "6900")
-	)
-
-	database, dbError := db.NewDatabaseConnection(context.Background(), dbConnectionStr)
+	database, dbError := db.NewDatabaseConnection(context.Background(), config.AppConfig.DatabaseURL)
 	if dbError != nil {
-		log.Fatalf("Failed database connection by url '%s'", dbConnectionStr)
+		log.Fatalf("Failed database connection by url '%s'", config.AppConfig.DatabaseURL)
 	}
 	defer database.Close()
 	log.Println("Database connected successfully", database.ConnectionString)
@@ -37,7 +24,7 @@ func main() {
 		DatabaseConnection: database,
 	})
 
-	httpServerStr := fmt.Sprintf("%s:%s", serverUrl, serverPort)
+	httpServerStr := fmt.Sprintf("%s:%s", config.AppConfig.ServerURL, config.AppConfig.ServerPort)
 
 	server := &http.Server{
 		Addr:         httpServerStr,
@@ -49,6 +36,6 @@ func main() {
 
 	log.Printf("Starting server on http://%s", httpServerStr)
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Cannot run server on %s port %s", serverPort, err.Error())
+		log.Fatalf("Cannot run server on %s. Error: %s", httpServerStr, err.Error())
 	}
 }

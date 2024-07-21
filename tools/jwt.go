@@ -1,25 +1,17 @@
 package tools
 
 import (
-	"github.com/golang-jwt/jwt/v5"
+	"netshop/main/config"
 	"time"
-)
 
-const (
-	defaultJWTSecret = "netshop-ua-djwt"
-	defaultExpire    = 24 * time.Hour
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Creates a new JWT token with the given values (claims)
 func NewJWTToken(claims jwt.MapClaims) (string, error) {
-	var (
-		jwtSecret string = TryGetEnv("JWT_SECRET", defaultJWTSecret)
-		jwtExpire string = TryGetEnv("JWT_EXPIRE", defaultExpire.String())
-	)
-
-	expire, err := time.ParseDuration(jwtExpire)
+	expire, err := time.ParseDuration(config.AppConfig.JwtExpire)
 	if err != nil {
-		expire = defaultExpire
+		return "", err
 	}
 
 	token := jwt.New(jwt.SigningMethodHS256)
@@ -27,12 +19,12 @@ func NewJWTToken(claims jwt.MapClaims) (string, error) {
 	claims["exp"] = time.Now().Add(expire).Unix()
 	claims["iat"] = time.Now().Unix()
 
-	return token.SignedString([]byte(jwtSecret))
+	return token.SignedString([]byte(config.AppConfig.JwtSecret))
 }
 
 // Parses a JWT token and returns the claims (values) of the token
 func ParseJWTToken(tokenString string) (jwt.MapClaims, error) {
-	secret := TryGetEnv("JWT_SECRET", defaultJWTSecret)
+	secret := config.AppConfig.JwtSecret
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
