@@ -13,12 +13,21 @@ import (
 )
 
 func main() {
-	database, dbError := db.NewDatabaseConnection(context.Background(), config.AppConfig.DatabaseURL)
-	if dbError != nil {
+	database, err := db.NewDatabaseConnection(context.Background(), &db.DatabaseConnectionOptions{
+		ConnectionURL:  config.AppConfig.DatabaseURL,
+		MaxConns:       10,
+		MinConns:       1,
+		ConnectTimeout: 5 * time.Second,
+	})
+	if err != nil {
 		log.Fatalf("Failed database connection by url '%s'", config.AppConfig.DatabaseURL)
 	}
 	defer database.Close()
-	log.Println("Database connected successfully", database.ConnectionString)
+	log.Println("Database connection pool initialized successfully", database.ConnectionString)
+
+	if err = database.Connection.Ping(database.Context); err != nil {
+		log.Fatalf("Failed database ping by url '%s'", config.AppConfig.DatabaseURL)
+	}
 
 	router := api.InitAndCreateRouter(&api.InitEndpointsOptions{
 		DatabaseConnection: database,
