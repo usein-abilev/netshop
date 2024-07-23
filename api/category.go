@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"netshop/main/db"
 	"netshop/main/tools"
+	"netshop/main/tools/router"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -14,14 +15,22 @@ type categoryHandler struct {
 	EntityStore        *db.CategoryEntityStore
 }
 
-func InitCategoryRouter(router *mux.Router, opts *InitEndpointsOptions) {
+func InitCategoryRouter(parent *router.Router, opts *InitEndpointsOptions) {
 	handler := categoryHandler{
 		DatabaseConnection: opts.DatabaseConnection,
 		EntityStore:        db.NewCategoryEntityStore(opts.DatabaseConnection),
 	}
-	productRouter := router.NewRoute().Subrouter()
-	productRouter.HandleFunc("/categories", handler.handleGet).Methods("GET")
-	productRouter.HandleFunc("/categories/{id:[0-9]+}", handler.handleGetById).Methods("GET")
+	router := parent.Subrouter()
+
+	router.AddRoute("/categories", handler.handleGet).
+		Methods("GET").
+		Name("Get all categories").
+		Description("Get all categories")
+
+	router.AddRoute("/categories/{id:[0-9]+}", handler.handleGetById).
+		Methods("GET").
+		Name("Get category entity").
+		Description("Get category by given id")
 }
 
 func (c *categoryHandler) handleGet(w http.ResponseWriter, req *http.Request) {

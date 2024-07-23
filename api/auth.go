@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"netshop/main/db"
 	"netshop/main/tools"
-
-	"github.com/gorilla/mux"
+	"netshop/main/tools/router"
 )
 
 const (
@@ -18,13 +17,21 @@ type authHandler struct {
 	DatabaseConnection *db.DatabaseConnection
 }
 
-func InitAuthRouter(router *mux.Router, opts *InitEndpointsOptions) {
+func InitAuthRouter(parentRouter *router.Router, opts *InitEndpointsOptions) {
 	handler := authHandler{
 		DatabaseConnection: opts.DatabaseConnection,
 	}
-	authRouter := router.NewRoute().Subrouter()
-	authRouter.HandleFunc("/auth", handler.handleAuth).Methods("POST")
-	authRouter.HandleFunc("/auth/verify", RequireAuth(handler.handleVerify)).Methods("POST")
+	router := parentRouter.Subrouter()
+
+	router.AddRoute("/auth", handler.handleAuth).
+		Methods("POST").
+		Name("User Authorization").
+		Description("Authorize the user as a customer or employee")
+
+	router.AddRoute("/auth/verify", RequireAuth(handler.handleVerify)).
+		Methods("POST").
+		Name("Verify Authorization").
+		Description("Verify the user's authorization. Returns 200 if authorized, 401 if not")
 }
 
 // Authorizes the customer or employee

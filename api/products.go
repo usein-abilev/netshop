@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"netshop/main/db"
 	"netshop/main/tools"
+	"netshop/main/tools/router"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -20,31 +21,78 @@ type productHandler struct {
 }
 
 type getAllQueryParams struct {
-	CategoryIds []int64  `schema:"q_category_ids"`
-	SizeIds     []int64  `schema:"q_size_ids"`
-	ColorIds    []int64  `schema:"q_color_ids"`
-	MinPrice    *float64 `schema:"q_min_price"`
-	MaxPrice    *float64 `schema:"q_max_price"`
-	Limit       int64    `schema:"limit"`
-	Offset      int64    `schema:"offset"`
-	OrderColumn string   `schema:"order_column"`
-	OrderAsc    bool     `schema:"order_asc"`
+	CategoryIds []int64  `schema:"q_category_ids" json:"q_category_ids"`
+	SizeIds     []int64  `schema:"q_size_ids" json:"q_size_ids"`
+	ColorIds    []int64  `schema:"q_color_ids" json:"q_color_ids"`
+	MinPrice    *float64 `schema:"q_min_price" json:"q_min_price"`
+	MaxPrice    *float64 `schema:"q_max_price" json:"q_max_price"`
+	Limit       int64    `schema:"limit,default:0" json:"limit"`
+	Offset      int64    `schema:"offset,default:0" json:"offset"`
+	OrderColumn string   `schema:"order_column,default:id" json:"order_column"`
+	OrderAsc    bool     `schema:"order_asc,default:false" json:"order_asc"`
 }
 
-func InitProductsRouter(router *mux.Router, opts *InitEndpointsOptions) {
+func InitProductsRouter(router *router.Router, opts *InitEndpointsOptions) {
 	handler := productHandler{
 		DatabaseConnection: opts.DatabaseConnection,
 		EntityStore:        db.NewProductEntityStore(opts.DatabaseConnection),
 	}
-	productRouter := router.NewRoute().Subrouter()
-	productRouter.Schemes()
+	productRouter := router.Subrouter()
+	productRouter.AddRoute("/products", handler.handleGet).
+		Methods("GET").
+		Name("Get products").
+		Description("Get all products. This endpoint supports filtering by category, size, color, price, and ordering.").
+		Schema(getAllQueryParams{
+			CategoryIds: []int64{1, 2},
+			SizeIds:     []int64{3, 4},
+			ColorIds:    []int64{5, 6},
+			MinPrice:    nil,
+			MaxPrice:    nil,
+			Limit:       0,
+			Offset:      0,
+			OrderColumn: "id",
+			OrderAsc:    true,
+		})
 
-	productRouter.HandleFunc("/products", handler.handleGet).Methods("GET")
-	productRouter.HandleFunc("/products", RequireAuth(handler.handleCreate)).Methods("POST")
-	productRouter.HandleFunc("/products/{id:[0-9]+}", handler.handleGetById).Methods("GET")
-	productRouter.HandleFunc("/products/{id:[0-9]+}", handler.handleEdit).Methods("PUT")
-	productRouter.HandleFunc("/products/{id:[0-9]+}", handler.handleDelete).Methods("DELETE")
-	productRouter.HandleFunc("/products/{id:[0-9]+}/variants", handler.handleGetVariants).Methods("GET")
+	productRouter.AddRoute("/products", RequireAuth(handler.handleCreate)).
+		Methods("POST").
+		Name("Create product").
+		Description("Create a new product").
+		Schema(&db.ProductCreateUpdate{
+			Name:        "Product name",
+			Description: "Product description",
+			BasePrice:   10.0,
+			CategoryId:  1,
+			EmployeeId:  1,
+			Variants: []db.ProductVariantCreateUpdate{
+				{
+					SizeId:  1,
+					ColorId: 1,
+					Price:   10.0,
+					Stock:   10,
+				},
+			},
+		})
+
+	productRouter.AddRoute("/products/{id:[0-9]+}", handler.handleGetById).
+		Methods("GET").
+		Name("Get product by id").
+		Description("Gets product by id. The response includes product details and variants")
+
+	productRouter.AddRoute("/products/{id:[0-9]+}", handler.handleEdit).
+		Methods("PUT").
+		Name("Edit product").
+		Description("Edit product by id")
+
+	productRouter.AddRoute("/products/{id:[0-9]+}", handler.handleDelete).
+		Methods("DELETE").
+		Name("Delete product").
+		Description("Deletes product by id")
+
+	productRouter.AddRoute("/products/{id:[0-9]+}/variants", handler.handleGetVariants).
+		Methods("GET").
+		Name("Get product variants").
+		Description("Get product variants by product id")
 }
 
 func (ph *productHandler) handleGet(w http.ResponseWriter, req *http.Request) {
