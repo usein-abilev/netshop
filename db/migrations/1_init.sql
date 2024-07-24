@@ -67,6 +67,17 @@ create table colors (
 );
 create index colors_name_idx on colors(name);
 
+create table files (
+    id serial primary key,
+    filename varchar(255) not null,
+    filetype varchar(255) not null,
+    size_bytes integer not null,
+    path varchar(255) not null,
+    width integer not null,
+    height integer not null,
+    created_at timestamp not null default now()
+);
+
 create table products (
     id serial primary key,
     name varchar(255) not null,
@@ -94,6 +105,12 @@ create index product_variants_size_id_idx on product_variants(size_id);
 create index product_variants_color_id_idx on product_variants(color_id);
 create index product_variants_price_idx on product_variants(price);
 create index product_variants_stock_idx on product_variants(stock);
+
+create table product_variant_images (
+    id serial primary key,
+    file_id integer references files(id) on delete cascade,
+    product_variant_id integer references product_variants(id) on delete cascade
+);
 
 create type order_status as enum('pending', 'processing', 'shipped', 'delivered');
 create table orders (

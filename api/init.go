@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	cors "github.com/rs/cors"
 )
 
 type InitEndpointsOptions struct {
@@ -58,12 +59,30 @@ func InitAndCreateRouter(opts *InitEndpointsOptions) http.Handler {
 	muxRouter := mux.NewRouter()
 	muxRouter.StrictSlash(true)
 
-	muxRouter.Use(LoggingMiddleware)
+	// Init file server for ./static/files/*.webp files
+	fileServer := http.FileServer(http.Dir("./static/files"))
+	muxRouter.HandleFunc("/static/files/{filename}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		filename := vars["filename"]
+		if !strings.HasSuffix(filename, ".webp") {
+			tools.RespondWithError(w, "Invalid file format", http.StatusBadRequest)
+			return
+		}
+		http.StripPrefix("/static/files/", fileServer).ServeHTTP(w, r)
+	})
+
+	corsConfig := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
 
 	router := router.NewRouter()
 	InitAuthRouter(router, opts)
 	InitCategoryRouter(router, opts)
 	InitProductsRouter(router, opts)
+	InitFileRouter(router, opts)
 
 	// move all registered routes to the mux router to be able to use it
 	moveRouterToMux(router, muxRouter)
@@ -84,5 +103,6 @@ func InitAndCreateRouter(opts *InitEndpointsOptions) http.Handler {
 		tools.RespondWithError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
-	return muxRouter
+	handler := corsConfig.Handler(muxRouter)
+	return handler
 }

@@ -3,6 +3,13 @@ This is a simple online shop backend written in Go. It is a RESTful API that all
 
 My personal goal with this project is to learn about Go and how to build a RESTful API with it.
 
+## Requirements
+- Go 1.21+
+- PostgreSQL 16+
+- [libvips](https://www.libvips.org/install) 8.15.2
+
+This project uses [libvips](https://www.libvips.org) to compress and convert images to WebP format. Make sure to install it on your system.
+
 ## Installation
 1. Clone the repository
 2. Run `go mod download` to download all dependencies
