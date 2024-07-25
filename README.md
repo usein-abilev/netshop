@@ -19,7 +19,7 @@ JWT_SECRET=secret
 JWT_EXPIRATION=duration ; value for `time.ParseDuration`, default is 24h
 
 export DATABASE_URL=postgres://username:password@localhost:1900/dbname
-export SERVER_URL=0.0.0.0
+export SERVER_HOST=0.0.0.0
 export SERVER_PORT=8080
 ```
 4. Install `docker-compose` and run `docker-compose up -d` to install and start the PostgreSQL database

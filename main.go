@@ -33,7 +33,7 @@ func main() {
 		DatabaseConnection: database,
 	})
 
-	httpServerStr := fmt.Sprintf("%s:%s", config.AppConfig.ServerURL, config.AppConfig.ServerPort)
+	httpServerStr := fmt.Sprintf("%s:%s", config.AppConfig.ServerHost, config.AppConfig.ServerPort)
 
 	server := &http.Server{
 		Addr:         httpServerStr,

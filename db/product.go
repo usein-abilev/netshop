@@ -4,26 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"netshop/main/config"
+	"path"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
 type ProductVariantEntity struct {
-	Id    int64       `json:"id"`
-	Size  SizeEntity  `json:"size"`
-	Color ColorEntity `json:"color"`
-	Price float64     `json:"price"`
-	Stock int32       `json:"stock"`
+	Id        int64       `json:"id"`
+	Size      SizeEntity  `json:"size"`
+	Color     ColorEntity `json:"color"`
+	Price     float64     `json:"price"`
+	Stock     int32       `json:"stock"`
+	ImageUrls []string    `json:"image_urls"`
 }
 
 type ProductEntity struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Id          int64                  `json:"id"`
-	BasePrice   float64                `json:"base_price"`
-	Category    CategoryEntity         `json:"category"`
-	Variants    []ProductVariantEntity `json:"variants"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	Id          int64                   `json:"id"`
+	BasePrice   float64                 `json:"base_price"`
+	Category    CategoryEntity          `json:"category"`
+	Variants    []*ProductVariantEntity `json:"variants"`
 }
 
 type ProductGetEntitiesQueryOpts struct {
@@ -51,6 +54,7 @@ type ProductGetEntitiesOptions struct {
 }
 
 type ProductVariantCreateUpdate struct {
+	FileIds []int64 `json:"file_ids"`
 	SizeId  int64   `json:"size_id"`
 	ColorId int64   `json:"color_id"`
 	Price   float64 `json:"price"`
@@ -77,7 +81,7 @@ func NewProductEntityStore(database *DatabaseConnection) *ProductEntityStore {
 }
 
 func (p *ProductEntityStore) GetById(id int64) (ProductEntity, error) {
-	row := p.db.Connection.QueryRow(p.db.Context, `select "id", "name", "description", "base_price" from "products" where id = $1`, id)
+	row := p.db.Connection.QueryRow(p.db.Context, `SELECT "id", "name", "description", "base_price" FROM "products" WHERE id = $1`, id)
 	var product ProductEntity
 	err := row.Scan(&product.Id, &product.Name, &product.Description, &product.BasePrice)
 	if err != nil {
@@ -88,7 +92,7 @@ func (p *ProductEntityStore) GetById(id int64) (ProductEntity, error) {
 
 func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]ProductEntity, error) {
 	query := strings.Builder{}
-	query.WriteString(`select
+	query.WriteString(`SELECT
 		"products"."id",
 		"products"."name",
 		"products"."description",
@@ -101,12 +105,16 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 		"product_variants"."price",
 		"product_variants"."stock",
 		"sizes"."name",
-		"colors"."name"
-	from "products"
-	join "categories" on "products"."category_id" = "categories"."id"
-	join "product_variants" on "products"."id" = "product_variants"."product_id"
-	join "sizes" on "product_variants"."size_id" = "sizes"."id"
-	join "colors" on "product_variants"."color_id" = "colors"."id"`)
+		"colors"."name",
+		"files"."path" as "image_path"
+	FROM "products"
+	JOIN "categories" on "products"."category_id" = "categories"."id"
+	JOIN "product_variants" on "products"."id" = "product_variants"."product_id"
+	JOIN "sizes" on "product_variants"."size_id" = "sizes"."id"
+	JOIN "colors" on "product_variants"."color_id" = "colors"."id"
+	JOIN "product_variant_images" on "product_variant_images"."product_variant_id" = "product_variants"."id"
+	JOIN "files" on "files"."id" = "product_variant_images"."file_id"
+	`)
 
 	whereConditions := []string{}
 	convertToSqlSeq := func(ids []int64) string {
@@ -157,17 +165,20 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 	defer rows.Close()
 
 	productsMap := make(map[int64]*ProductEntity)
+	productsVariantMap := make(map[int64]map[int64]*ProductVariantEntity)
+
 	for rows.Next() {
 		var productId, variantId, sizeId, colorId int64
 		var productName, productDescription, categoryName, sizeName, colorName string
 		var basePrice, variantPrice float64
 		var categoryId int64
 		var stock int32
+		var imagePath string
 
 		err := rows.Scan(
 			&productId, &productName, &productDescription, &basePrice, &categoryId, &categoryName,
 			&variantId, &sizeId, &colorId, &variantPrice, &stock,
-			&sizeName, &colorName,
+			&sizeName, &colorName, &imagePath,
 		)
 		if err != nil {
 			return nil, err
@@ -181,19 +192,25 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 				Description: productDescription,
 				BasePrice:   basePrice,
 				Category:    CategoryEntity{Id: categoryId, Name: categoryName},
-				Variants:    []ProductVariantEntity{},
 			}
 			productsMap[productId] = product
+			productsVariantMap[productId] = make(map[int64]*ProductVariantEntity)
 		}
 
-		variant := ProductVariantEntity{
-			Id:    variantId,
-			Size:  SizeEntity{Id: sizeId, Name: sizeName},
-			Color: ColorEntity{Id: colorId, Name: colorName},
-			Price: variantPrice,
-			Stock: stock,
+		variant, exists := productsVariantMap[productId][variantId]
+		if !exists {
+			variant = &ProductVariantEntity{
+				Id:        variantId,
+				Size:      SizeEntity{Id: sizeId, Name: sizeName},
+				Color:     ColorEntity{Id: colorId, Name: colorName},
+				Price:     variantPrice,
+				Stock:     stock,
+				ImageUrls: []string{},
+			}
+			product.Variants = append(product.Variants, variant)
 		}
-		product.Variants = append(product.Variants, variant)
+
+		variant.ImageUrls = append(variant.ImageUrls, getImageURLFromPath(imagePath))
 	}
 
 	products := make([]ProductEntity, 0, len(productsMap))
@@ -233,7 +250,7 @@ func (p *ProductEntityStore) Update(ctx context.Context, opts *ProductCreateUpda
 }
 
 func (p *ProductEntityStore) GetVariants(productId int64) ([]ProductVariantEntity, error) {
-	query := `select 
+	query := `SELECT 
 			"product_variants"."id" as "variant_id", 
 			"size_id", 
 			"color_id", 
@@ -241,10 +258,10 @@ func (p *ProductEntityStore) GetVariants(productId int64) ([]ProductVariantEntit
 			"stock",
 			"sizes"."name",
 			"colors"."name"
-		from "product_variants"
-			left join "sizes" on "product_variants"."size_id" = "sizes"."id"
-			left join "colors" on "product_variants"."color_id" = "colors"."id"
- 		where "product_id" = $1
+		FROM "product_variants"
+			LEFT JOIN "sizes" on "product_variants"."size_id" = "sizes"."id"
+			LEFT JOIN "colors" on "product_variants"."color_id" = "colors"."id"
+ 		WHERE "product_id" = $1
 	`
 	rows, err := p.db.Connection.Query(p.db.Context, query, productId)
 	if err != nil {
@@ -275,7 +292,7 @@ func (p *ProductEntityStore) AddProductVariant(ctx context.Context, productId in
 		return err
 	}
 
-	if err := p.addProductVariant(ctx, tx, productId, opts); err != nil {
+	if _, err := p.addProductVariant(ctx, tx, productId, opts); err != nil {
 		return err
 	}
 
@@ -298,23 +315,34 @@ func (p *ProductEntityStore) createBaseProduct(ctx context.Context, tx pgx.Tx, o
 
 func (p *ProductEntityStore) createProductVariants(ctx context.Context, tx pgx.Tx, productId int64, variants []ProductVariantCreateUpdate) error {
 	for _, variant := range variants {
-		if err := p.addProductVariant(ctx, tx, productId, &variant); err != nil {
+		if _, err := p.addProductVariant(ctx, tx, productId, &variant); err != nil {
 			return fmt.Errorf("failed to create product variant: %w", err)
 		}
 	}
 	return nil
 }
 
-func (p *ProductEntityStore) addProductVariant(ctx context.Context, tx pgx.Tx, productId int64, opts *ProductVariantCreateUpdate) error {
-	_, err := tx.Exec(ctx,
+func (p *ProductEntityStore) addProductVariant(ctx context.Context, tx pgx.Tx, productId int64, opts *ProductVariantCreateUpdate) (int64, error) {
+	var productVariantId int64
+	err := tx.QueryRow(ctx,
 		`INSERT INTO "product_variants" ("product_id", "size_id", "color_id", "price", "stock")
-			VALUES ($1, $2, $3, $4, $5)`,
+			VALUES ($1, $2, $3, $4, $5)
+		RETURNING "id"`,
 		productId, opts.SizeId, opts.ColorId, opts.Price, opts.Stock,
-	)
+	).Scan(&productVariantId)
+
 	if err != nil {
-		return fmt.Errorf("failed to add product variant: %w", err)
+		return 0, fmt.Errorf("failed to add product variant: %w", err)
 	}
-	return nil
+
+	for _, fileId := range opts.FileIds {
+		_, err := tx.Exec(ctx, `INSERT INTO "product_variant_images" ("product_variant_id", "file_id") VALUES ($1, $2)`, productVariantId, fileId)
+		if err != nil {
+			return 0, fmt.Errorf("failed to add product variant image: %w", err)
+		}
+	}
+
+	return productVariantId, nil
 }
 
 func (p *ProductEntityStore) checkCategoryExists(ctx context.Context, tx pgx.Tx, categoryId int64) error {
@@ -339,4 +367,8 @@ func (p *ProductEntityStore) checkProductExists(ctx context.Context, tx pgx.Tx, 
 		return fmt.Errorf("product with id '%d' not found", productId)
 	}
 	return nil
+}
+
+func getImageURLFromPath(imagePath string) string {
+	return path.Join(config.AppConfig.ServerURL, imagePath)
 }

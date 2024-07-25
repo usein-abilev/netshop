@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -9,8 +10,9 @@ import (
 
 type config struct {
 	DatabaseURL string
-	ServerURL   string
+	ServerHost  string
 	ServerPort  string
+	ServerURL   string
 	JwtSecret   string
 	JwtExpire   string
 }
@@ -26,8 +28,9 @@ func init() {
 	AppConfig.JwtSecret = tryGetEnv("JWT_SECRET", "30bd725869cb74ba")
 	AppConfig.JwtExpire = tryGetEnv("JWT_EXPIRE", "24h")
 	AppConfig.DatabaseURL = tryGetEnv("DATABASE_URL", "localhost")
-	AppConfig.ServerURL = tryGetEnv("SERVER_URL", "localhost")
+	AppConfig.ServerHost = tryGetEnv("SERVER_HOST", "localhost")
 	AppConfig.ServerPort = tryGetEnv("SERVER_PORT", "6900")
+	AppConfig.ServerURL = fmt.Sprintf("http://%s:%s", AppConfig.ServerHost, AppConfig.ServerPort)
 
 	log.Printf("Config successfully loaded: %+v", AppConfig)
 }

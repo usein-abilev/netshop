@@ -70,6 +70,7 @@ func InitProductsRouter(router *router.Router, opts *InitEndpointsOptions) {
 					ColorId: 1,
 					Price:   10.0,
 					Stock:   10,
+					FileIds: []int64{1, 2},
 				},
 			},
 		})
