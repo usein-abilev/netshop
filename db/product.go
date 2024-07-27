@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"netshop/main/config"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -26,6 +28,7 @@ type ProductEntity struct {
 	Id          int64                   `json:"id"`
 	BasePrice   float64                 `json:"base_price"`
 	Category    CategoryEntity          `json:"category"`
+	CreatedAt   time.Time               `json:"created_at"`
 	Variants    []*ProductVariantEntity `json:"variants"`
 }
 
@@ -97,6 +100,7 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 		"products"."name",
 		"products"."description",
 		"products"."base_price",
+		"products"."created_at",
 		"products"."category_id",
 		"categories"."name",
 		"product_variants"."id",
@@ -149,8 +153,6 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 		if opts.Offset > 0 {
 			query.WriteString(fmt.Sprintf(" offset %d", opts.Offset))
 		}
-
-		// TODO: Add order by
 	}
 
 	if len(whereConditions) > 0 {
@@ -158,6 +160,26 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 		query.WriteString(strings.Join(whereConditions, " and "))
 	}
 
+	orderColumn := "id"
+	orderDirection := "desc"
+
+	if opts.OrderAsc {
+		orderDirection = "asc"
+	}
+
+	if opts.OrderColumn != "" {
+		orderColumns := []string{"id", "name", "base_price", "created_at"}
+		for _, column := range orderColumns {
+			if opts.OrderColumn == column {
+				orderColumn = column
+				break
+			}
+		}
+	}
+
+	query.WriteString(fmt.Sprintf(` order by "products"."%s" %s`, orderColumn, orderDirection))
+
+	log.Printf("Executing query: %s", query.String())
 	rows, err := p.db.Connection.Query(p.db.Context, query.String())
 	if err != nil {
 		return nil, err
@@ -174,9 +196,10 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 		var categoryId int64
 		var stock int32
 		var imagePath string
+		var createdAt time.Time
 
 		err := rows.Scan(
-			&productId, &productName, &productDescription, &basePrice, &categoryId, &categoryName,
+			&productId, &productName, &productDescription, &basePrice, &createdAt, &categoryId, &categoryName,
 			&variantId, &sizeId, &colorId, &variantPrice, &stock,
 			&sizeName, &colorName, &imagePath,
 		)
@@ -191,6 +214,7 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 				Name:        productName,
 				Description: productDescription,
 				BasePrice:   basePrice,
+				CreatedAt:   createdAt,
 				Category:    CategoryEntity{Id: categoryId, Name: categoryName},
 			}
 			productsMap[productId] = product
