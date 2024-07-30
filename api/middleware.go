@@ -44,3 +44,15 @@ func RequireAuth(handler http.HandlerFunc) http.HandlerFunc {
 		handler(w, r)
 	})
 }
+
+func RequireGuest(handler http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "" {
+			tools.RespondWithError(w, "User already authorized", http.StatusBadRequest)
+			return
+		}
+
+		handler(w, r)
+	})
+}

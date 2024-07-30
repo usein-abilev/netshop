@@ -16,7 +16,7 @@ func NewEmployeeEntityStore(database *DatabaseConnection) *EmployeeEntityStore {
 	}
 }
 
-func (p *EmployeeEntityStore) GetEmployeeById(id int64) (EmployeeEntity, error) {
+func (p *EmployeeEntityStore) GetById(id int64) (EmployeeEntity, error) {
 	row := p.db.Connection.QueryRow(p.db.Context, `select "id", "username", "password" from "employees" where id = $1`, id)
 	var employee EmployeeEntity
 	err := row.Scan(&employee.Id, &employee.Username, &employee.Password)
@@ -26,7 +26,7 @@ func (p *EmployeeEntityStore) GetEmployeeById(id int64) (EmployeeEntity, error) 
 	return employee, nil
 }
 
-func (e *EmployeeEntityStore) GetEmployeeByUsername(username string) (EmployeeEntity, error) {
+func (e *EmployeeEntityStore) GetByUsername(username string) (EmployeeEntity, error) {
 	row := e.db.Connection.QueryRow(e.db.Context, `select "id", "username", "password" from "employees" where username = $1`, username)
 	var employee EmployeeEntity
 	err := row.Scan(&employee.Id, &employee.Username, &employee.Password)
