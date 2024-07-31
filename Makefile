@@ -1,7 +1,7 @@
 include .env
 
 dev: 
-	@task :start -w --interval=500ms
+	@task :start -fw --interval=500ms
 
 start: 
 	@go run .
