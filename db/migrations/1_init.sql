@@ -105,6 +105,8 @@ create index product_variants_size_id_idx on product_variants(size_id);
 create index product_variants_color_id_idx on product_variants(color_id);
 create index product_variants_price_idx on product_variants(price);
 create index product_variants_stock_idx on product_variants(stock);
+alter table product_variants add constraint check_stock_nonnegative check (stock >= 0);
+
 
 create table product_variant_images (
     id serial primary key,
@@ -117,18 +119,32 @@ create table orders (
     id serial primary key,
     order_date timestamp not null,
     customer_id integer references customers(id) on delete cascade,
-    product_id integer references products(id) on delete set null,
-    total decimal(10, 2) not null,
+    
+    -- delivery info
+    delivery_address varchar(255) not null,
+    delivery_zipcode varchar(10) not null,
+    delivery_city varchar(255) not null,
+    delivery_country varchar(255) not null,
+
     status order_status not null default 'pending',
     status_date timestamp not null default now(),
     created_at timestamp not null default now(),
     updated_at timestamp not null default now()
 );
 create index orders_order_date_idx on orders(order_date);
-create index orders_total_idx on orders(total);
-create index orders_customer_id_idx on orders(customer_id);
 create index orders_status_idx on orders(status);
 create index orders_status_date_idx on orders(status_date);
+
+create table order_items (
+    id serial primary key,
+    order_id integer references orders(id) on delete cascade,
+    product_variant_id integer references product_variants(id) on delete set null,
+    quantity integer not null,
+    price decimal(10, 2) not null
+);
+create index order_items_order_id_idx on order_items(order_id);
+create index order_items_product_variant_id_idx on order_items(product_variant_id);
+create index order_items_quantity_idx on order_items(quantity);
 
 insert into categories (name, description) values
     ('Shirts', 'All kinds of shirts'),

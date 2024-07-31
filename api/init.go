@@ -90,6 +90,7 @@ func InitAndCreateRouter(opts *InitEndpointsOptions) http.Handler {
 	InitCategoryRouter(router, opts)
 	InitProductsRouter(router, opts)
 	InitFileRouter(router, opts)
+	InitOrderRouter(router, opts)
 
 	// move all registered routes to the mux router to be able to use it
 	moveRouterToMux(router, muxRouter)

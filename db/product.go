@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"netshop/main/config"
 	"path"
 	"strings"
@@ -179,7 +178,6 @@ func (p *ProductEntityStore) GetEntities(opts *ProductGetEntitiesOptions) ([]Pro
 
 	query.WriteString(fmt.Sprintf(` order by "products"."%s" %s`, orderColumn, orderDirection))
 
-	log.Printf("Executing query: %s", query.String())
 	rows, err := p.db.Connection.Query(p.db.Context, query.String())
 	if err != nil {
 		return nil, err
